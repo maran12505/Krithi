@@ -1,0 +1,189 @@
+@page "/book/{id:long}"
+@inject IJSRuntime JS
+@using System.Text.Json
+@using WriteUp.Components.Layout
+@layout MainLayout
+@rendermode InteractiveServer
+
+<style>
+    .blog-container {
+        max-width: 720px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background: #fdfcf8;
+        border-radius: 8px;
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.05);
+        font-family: 'Georgia', serif;
+        line-height: 1.8;
+        color: #2c2c2c;
+    }
+
+    .blog-cover {
+        width: 100%;
+        height: auto;
+        max-height: 380px;
+        object-fit: cover;
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+        border: 1px solid #ddd;
+    }
+
+    .blog-title {
+        font-size: 2.2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        color: #1a1a1a;
+    }
+
+    .blog-subtitle {
+        font-size: 1.3rem;
+        color: #555;
+        margin-bottom: 1.5rem;
+    }
+
+    .blog-meta {
+        font-size: 1rem;
+        color: #777;
+        margin-bottom: 2rem;
+    }
+
+    .blog-section {
+        margin-bottom: 2rem;
+    }
+
+    .blog-section h5 {
+        font-size: 1.2rem;
+        margin-bottom: 0.5rem;
+        color: #444;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 0.3rem;
+    }
+
+    .blog-section div {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-size: 1.05rem;
+    }
+
+    .blog-date {
+        font-size: 0.95rem;
+        color: #888;
+        margin-top: 1rem;
+        font-style: italic;
+    }
+
+    .back-button {
+        display: inline-block;
+        margin-top: 2rem;
+        padding: 0.6rem 1.2rem;
+        font-size: 1rem;
+        border-radius: 5px;
+    }
+</style>
+
+
+<h3 class="text-start mt-4 mb-4 ms-3">📖 Book Blog</h3>
+
+@if (!isReady)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border text-primary"></div>
+        <p class="mt-2">Loading book details...</p>
+    </div>
+}
+else if (book == null)
+{
+    <div class="alert alert-warning text-center">Book not found.</div>
+}
+else
+{
+    <div class="blog-container text-start">
+        <img src="@(!string.IsNullOrWhiteSpace(book.ContentImage) ? book.ContentImage : defaultImage)"
+             alt="Book Cover" class="blog-cover" />
+
+        <div class="blog-title">@book.Title</div>
+
+        @if (!string.IsNullOrWhiteSpace(book.Subtitle))
+        {
+            <div class="blog-subtitle">@book.Subtitle</div>
+        }
+
+        <div class="blog-meta">
+            <span><strong>Author:</strong> @book.Author</span>
+            <span><strong>Contributor:</strong> @(string.IsNullOrWhiteSpace(book.Contributor) ? "—" : book.Contributor)</span>
+            <span><strong>Genre:</strong> @book.Genre</span>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(book.Description))
+        {
+            <div class="blog-section">
+                <h5><strong>Description</strong></h5>
+                <div>@book.Description</div>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(book.Content))
+        {
+            <div class="blog-section">
+                <h5><strong>Content</strong></h5>
+                <div>@book.Content</div>
+            </div>
+        }
+
+        <div class="blog-date">📅 Published on: @book.Timestamp.ToString("dd MMM yyyy hh:mm tt")</div>
+
+        <a href="/counter" class="btn btn-secondary back-button">⬅ Back to List</a>
+    </div>
+}
+
+@code {
+    [Parameter] public long id { get; set; }
+
+    private BookEntry? book;
+    private bool isReady = false;
+    private const string StorageKey = "bookList";
+    private readonly string defaultImage = "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Picture_icon_BLACK.svg/2048px-Picture_icon_BLACK.svg.png";
+    private bool _loaded = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_loaded)
+        {
+            _loaded = true;
+
+            try
+            {
+                var json = await JS.InvokeAsync<string>("localStorage.getItem", StorageKey);
+                if (!string.IsNullOrWhiteSpace(json))
+                {
+                    var books = JsonSerializer.Deserialize<List<BookEntry>>(json);
+                    if (books != null)
+                    {
+                        var timestamp = new DateTime(id);
+                        book = books.FirstOrDefault(b => b.Timestamp.Ticks == timestamp.Ticks);
+                    }
+                }
+            }
+            catch
+            {
+                // Optional: handle error
+            }
+
+            isReady = true;
+            StateHasChanged();
+        }
+    }
+
+    private class BookEntry
+    {
+        public string Title { get; set; } = "";
+        public string Subtitle { get; set; } = "";
+        public string Author { get; set; } = "";
+        public string Contributor { get; set; } = "";
+        public string Genre { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Content { get; set; } = "";
+        public string ContentImage { get; set; } = "";
+        public DateTime Timestamp { get; set; }
+    }
+}

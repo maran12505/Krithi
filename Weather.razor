@@ -1,0 +1,250 @@
+﻿@page "/weather"
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Text.Json
+@inject IJSRuntime JS
+@using WriteUp.Components.Layout
+@layout MainLayout
+@rendermode InteractiveServer
+
+<h3 class="mt-4">📚 Book Publishing Manager</h3>
+
+<EditForm Model="@bookModel" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+
+    <div class="container mt-4">
+        <div class="row g-4">
+
+            <div class="col-md-6">
+                <label class="form-label">📖 Book Title <span class="text-danger">*</span></label>
+                <input class="form-control" @bind="bookModel.Title" @oninput="SaveDraftAsync" />
+                <ValidationMessage For="@(() => bookModel.Title)" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">🔖 Book Subtitle</label>
+                <input class="form-control" @bind="bookModel.Subtitle" @oninput="SaveDraftAsync" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">✍ Book Author <span class="text-danger">*</span></label>
+                <input class="form-control" @bind="bookModel.Author" @oninput="SaveDraftAsync" />
+                <ValidationMessage For="@(() => bookModel.Author)" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">🤝 Book Contributor</label>
+                <input class="form-control" @bind="bookModel.Contributor" @oninput="SaveDraftAsync" />
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">📚 Genre <span class="text-danger">*</span></label>
+                <select class="form-select" @bind="Genre">
+                    <option value="">-- Select Genre --</option>
+                    <option>Fiction</option>
+                    <option>Non-Fiction</option>
+                    <option>Science</option>
+                    <option>Biography</option>
+                    <option>Fantasy</option>
+                    <option>History</option>
+                </select>
+                <ValidationMessage For="@(() => bookModel.Genre)" />
+            </div>
+
+                   <div class="col-md-6">
+                <label class="form-label">🌐 Book Image URL</label>
+                <input class="form-control" @bind="bookModel.ContentImage" @oninput="SaveDraftAsync" />
+                @if (!string.IsNullOrEmpty(bookModel.ContentImage))
+                {
+                    <img src="@bookModel.ContentImage" class="img-thumbnail mt-2" style="height: 120px;" />
+                }
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">📝 Description</label>
+                <textarea class="form-control" @bind="bookModel.Description" @oninput="SaveDraftAsync"></textarea>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">📄 Content</label>
+                <textarea class="form-control" @bind="bookModel.Content" @oninput="SaveDraftAsync"></textarea>
+            </div>
+
+     
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-success w-100">✅ @(isEditing ? "Update" : "Save") Book</button>
+            </div>
+        </div>
+    </div>
+</EditForm>
+
+@if (savedBooks.Count > 0)
+{
+    <div class="container mt-5">
+        <h4>📋 Saved Books</h4>
+        <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th>Title</th>
+                    <th>Subtitle</th>
+                    <th>Author</th>
+                    <th>Contributor</th>
+                    <th>Genre</th>
+                    <th>Image</th>
+                    <th>Saved On</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var book in savedBooks.Select((b, index) => new { Book = b, Index = index }))
+                {
+                    <tr>
+                        <td>@book.Book.Title</td>
+                        <td>@book.Book.Subtitle</td>
+                        <td>@book.Book.Author</td>
+                        <td>@book.Book.Contributor</td>
+                        <td>@book.Book.Genre</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(book.Book.ContentImage))
+                            {
+                                <img src="@book.Book.ContentImage" style="height: 60px;" class="img-thumbnail" />
+                            }
+                        </td>
+                        <td>@book.Book.Timestamp.ToString("dd MMM yyyy, hh:mm tt")</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary me-2" @onclick="() => EditBook(book.Index)">✏️ Edit</button>
+                            <button class="btn btn-sm btn-danger" @onclick="() => DeleteBook(book.Index)">🗑 Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private const string DraftKey = "bookDraft";
+    private const string BookListKey = "bookList";
+
+    private BookModel bookModel = new();
+    private List<BookEntry> savedBooks = new();
+    private int editingIndex = -1;
+    private bool isEditing = false;
+    private bool _renderedOnce = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_renderedOnce)
+        {
+            _renderedOnce = true;
+
+            try
+            {
+                var draftJson = await JS.InvokeAsync<string>("localStorage.getItem", DraftKey);
+                if (!string.IsNullOrWhiteSpace(draftJson))
+                {
+                    bookModel = JsonSerializer.Deserialize<BookModel>(draftJson) ?? new();
+                    StateHasChanged();
+                }
+
+                var savedJson = await JS.InvokeAsync<string>("localStorage.getItem", BookListKey);
+                if (!string.IsNullOrWhiteSpace(savedJson))
+                {
+                    savedBooks = JsonSerializer.Deserialize<List<BookEntry>>(savedJson) ?? new();
+                    StateHasChanged();
+                }
+            }
+            catch { }
+        }
+    }
+
+    private async Task SaveDraftAsync()
+    {
+        var json = JsonSerializer.Serialize(bookModel);
+        await JS.InvokeVoidAsync("localStorage.setItem", DraftKey, json);
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        var entry = new BookEntry
+        {
+            Title = bookModel.Title,
+            Subtitle = bookModel.Subtitle,
+            Author = bookModel.Author,
+            Contributor = bookModel.Contributor,
+            Genre = bookModel.Genre,
+            Content = bookModel.Content,
+            Description = bookModel.Description,
+            ContentImage = bookModel.ContentImage,
+            Timestamp = DateTime.Now
+        };
+
+        if (isEditing && editingIndex >= 0)
+        {
+            savedBooks[editingIndex] = entry;
+            isEditing = false;
+            editingIndex = -1;
+        }
+        else
+        {
+            savedBooks.Add(entry);
+        }
+
+        await JS.InvokeVoidAsync("localStorage.setItem", BookListKey, JsonSerializer.Serialize(savedBooks));
+        await JS.InvokeVoidAsync("localStorage.removeItem", DraftKey);
+        bookModel = new();
+    }
+
+    private void EditBook(int index)
+    {
+        var entry = savedBooks[index];
+        bookModel = new BookModel
+        {
+            Title = entry.Title,
+            Subtitle = entry.Subtitle,
+            Author = entry.Author,
+            Contributor = entry.Contributor,
+            Genre = entry.Genre,
+            Content = entry.Content,
+            Description = entry.Description,
+            ContentImage = entry.ContentImage
+        };
+        editingIndex = index;
+        isEditing = true;
+    }
+
+    private async void DeleteBook(int index)
+    {
+        savedBooks.RemoveAt(index);
+        await JS.InvokeVoidAsync("localStorage.setItem", BookListKey, JsonSerializer.Serialize(savedBooks));
+        StateHasChanged();
+    }
+
+    private string Genre
+    {
+        get => bookModel.Genre;
+        set
+        {
+            bookModel.Genre = value;
+            _ = SaveDraftAsync();
+        }
+    }
+
+    public class BookModel
+    {
+        [Required] public string Title { get; set; } = "";
+        [Required] public string Author { get; set; } = "";
+        [Required] public string Genre { get; set; } = "";
+        public string Subtitle { get; set; } = "";
+        public string Contributor { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Content { get; set; } = "";
+        public string ContentImage { get; set; } = "";
+    }
+
+    public class BookEntry : BookModel
+    {
+        public DateTime Timestamp { get; set; }
+    }
+}

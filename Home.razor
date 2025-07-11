@@ -1,0 +1,44 @@
+﻿@page "/home"   
+@using WriteUp.Components.Layout
+@layout MainLayout
+@inject NavigationManager Navigation
+
+<PageTitle>Home</PageTitle>
+
+<div class="home-container">
+    <div class="login-background">
+        <div class="overlay-text">
+            <h1 class="headline">Do You Have a Story To Tell?</h1>
+            <p class="subheading">Turn your imagination into a published reality — fast and easy!</p>
+            <NavLink class="btn btn-primary w-50" href="/weather">Start Publishing</NavLink>
+        </div>
+    </div>
+
+    <div class="section book-info">
+        <center><h2>📘 Book Information</h2></center>
+        <p>Enter all the information about your book: language, title, and author(s).</p>
+        <ul>
+            <li>✔️ Multiple authors supported</li>
+            <li>✔️ International languages</li>
+            <li>✔️ Cover image uploads</li>
+        </ul>
+    </div>
+
+    <div class="section features">
+        <h2 class="title-center made-easy-text">📢 Publishing made Easy!</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <h4>🚀 Fast Setup</h4>
+                <p>Create and submit your book in just minutes.</p>
+            </div>
+            <div class="feature-card">
+                <h4>📤 Auto Save</h4>
+                <p>Drafts are saved automatically so you never lose work.</p>
+            </div>
+            <div class="feature-card">
+                <h4>🌍 Reach Readers</h4>
+                <p>Get your book seen by a global audience instantly.</p>
+            </div>
+        </div>
+    </div>
+</div>

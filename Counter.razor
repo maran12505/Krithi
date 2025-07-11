@@ -1,0 +1,178 @@
+﻿@page "/counter"
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+@using System.Text.Json
+@using WriteUp.Components.Layout
+@layout MainLayout
+
+<style>
+    .book-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+        padding: 1rem;
+    }
+
+    .book-card {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        padding: 1rem;
+    }
+
+    .book-image {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        border-radius: 6px;
+    }
+
+    .book-content {
+        flex-grow: 1;
+        margin-top: 1rem;
+    }
+
+    .book-footer {
+        margin-top: 1rem;
+    }
+
+    .book-description {
+        min-height: 120px;
+    }
+
+    .btn-link {
+        font-size: 0.9rem;
+    }
+
+    .clamp-text {
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+</style>
+
+
+<h2 class="mt-4 mb-3 text-center">📰 Published Book Blogs</h2>
+
+@if (bookList.Count == 0)
+{
+    <div class="alert alert-info text-center">
+        No book blogs found. Please add books on the <a href="/home">Home page</a>.
+    </div>
+}
+else
+{
+    <div class="book-grid">
+        @foreach (var book in bookList.OrderByDescending(b => b.Timestamp))
+        {
+            var displayImage = string.IsNullOrWhiteSpace(book.ContentImage)
+                ? "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Picture_icon_BLACK.svg/2048px-Picture_icon_BLACK.svg.png"
+                : book.ContentImage;
+
+            <div class="book-card">
+                <img src="@displayImage" alt="Book Cover" class="book-image" />
+
+                <div class="book-content">
+                    <h4 class="book-title">@book.Title</h4>
+
+                    <h6 class="book-subtitle text-muted">
+                        @(!string.IsNullOrWhiteSpace(book.Subtitle) ? book.Subtitle : "—")
+                    </h6>
+
+                    <p><strong>Author:</strong> @(!string.IsNullOrWhiteSpace(book.Author) ? book.Author : "—")</p>
+                    <p><strong>Contributor:</strong> @(!string.IsNullOrWhiteSpace(book.Contributor) ? book.Contributor : "—")</p>
+                    <p><strong>Genre:</strong> @(!string.IsNullOrWhiteSpace(book.Genre) ? book.Genre : "—")</p>
+
+                    @if (!string.IsNullOrWhiteSpace(book.Description) || !string.IsNullOrWhiteSpace(book.Content))
+                    {
+                        <div class="book-description">
+                            @if (expandedDescriptions.Contains(book.Timestamp))
+                            {
+                                @if (!string.IsNullOrWhiteSpace(book.Description))
+                                {
+                                    <p><strong>Description:</strong> @book.Description</p>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(book.Content))
+                                {
+                                    <p><strong>Content:</strong> @book.Content</p>
+                                }
+                                <a href="#" class="btn btn-link p-0" @onclick="() => ToggleDescription(book.Timestamp)">Show less</a>
+                            }
+                            else
+                            {
+                                @if (!string.IsNullOrWhiteSpace(book.Description))
+                                {
+                                    var shortDesc = book.Description.Length > 100 ? book.Description.Substring(0, 100) + "..." : book.Description;
+                                    <p><strong>Description:</strong> <span class="clamp-text">@book.Description</span></p>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(book.Content))
+                                {
+                                    var shortContent = book.Content.Length > 100 ? book.Content.Substring(0, 100) + "..." : book.Content;
+                                    <p><strong>Content:</strong> <span class="clamp-text">@book.Content</span></p>
+
+
+                                    @if (book.Content.Length > 100)
+                                    {
+                                        <a href="#" class="btn btn-link p-0" @onclick="() => ToggleDescription(book.Timestamp)">Read more</a>
+                                    }
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="book-footer d-flex flex-column align-items-end">
+                    <small class="mb-1">📅 Published: @book.Timestamp.ToString("dd MMM yyyy hh:mm tt")</small>
+                    <a class="btn btn-sm btn-outline-primary" href="/book/@book.Timestamp.Ticks">Read More</a>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<BookEntry> bookList = new();
+    private HashSet<DateTime> expandedDescriptions = new();
+    private const string StorageKey = "bookList";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var json = await JS.InvokeAsync<string>("localStorage.getItem", StorageKey);
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                bookList = JsonSerializer.Deserialize<List<BookEntry>>(json) ?? new();
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void ToggleDescription(DateTime timestamp)
+    {
+        if (expandedDescriptions.Contains(timestamp))
+            expandedDescriptions.Remove(timestamp);
+        else
+            expandedDescriptions.Add(timestamp);
+    }
+
+    private class BookEntry
+    {
+        public string Title { get; set; } = "";
+        public string Subtitle { get; set; } = "";
+        public string Author { get; set; } = "";
+        public string Contributor { get; set; } = "";
+        public string Genre { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Content { get; set; } = "";
+        public string ContentImage { get; set; } = "";
+        public DateTime Timestamp { get; set; }
+    }
+}
